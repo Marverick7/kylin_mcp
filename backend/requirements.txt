@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+websockets
+httpx
+pydantic
+pydantic-settings
+python-dotenv
+aiofiles
+openai
+mcp
+sse-starlette
+
