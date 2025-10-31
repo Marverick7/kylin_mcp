@@ -57,6 +57,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { ChatDotRound, Connection, Setting } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import api from '../api'
 
 const router = useRouter()
@@ -66,6 +67,7 @@ const appStore = useAppStore()
 const currentRoute = computed(() => route.path)
 const serverCount = computed(() => appStore.mcpServers.length)
 const backendStatus = ref(false)
+const isFirstCheck = ref(true)
 
 let healthCheckInterval = null
 
@@ -77,9 +79,20 @@ const handleMenuSelect = (index) => {
 const checkBackendHealth = async () => {
   try {
     await api.getConfig()
+    const wasOffline = backendStatus.value === false && !isFirstCheck.value
     backendStatus.value = true
+    
+    // 如果后端从离线变为在线，重新加载数据（排除首次检查）
+    if (wasOffline) {
+      console.log('后端已重新连接，正在重新加载数据...')
+      await appStore.init()
+      ElMessage.success('后端已重新连接，数据已更新')
+    }
+    
+    isFirstCheck.value = false
   } catch (error) {
     backendStatus.value = false
+    isFirstCheck.value = false
   }
 }
 

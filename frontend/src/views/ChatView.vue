@@ -9,8 +9,8 @@
         </el-tag>
       </div>
       <div class="header-right">
-        <el-tooltip content="工具数量">
-          <el-tag type="info" size="small">
+        <el-tooltip content="点击查看可用工具">
+          <el-tag type="info" size="small" class="clickable-tag" @click="openToolsDialog">
             <el-icon><Tools /></el-icon>
             {{ toolCount }} 个工具
           </el-tag>
@@ -127,6 +127,49 @@
         <el-button type="primary" @click="confirmModelSelection">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 工具列表对话框 -->
+    <el-dialog v-model="showToolsDialog" title="可用工具列表" width="600px">
+      <div v-if="!appStore.mcpTools || appStore.mcpTools.length === 0" class="tools-empty">
+        <el-empty description="暂无可用工具">
+          <template #image>
+            <el-icon :size="60" color="#909399"><Tools /></el-icon>
+          </template>
+          <template #description>
+            <div>暂无可用工具</div>
+            <div style="font-size: 12px; color: #909399; margin-top: 8px;">
+              请先在"MCP服务"页面添加并启用服务器
+            </div>
+          </template>
+        </el-empty>
+      </div>
+      <div v-else class="tools-list">
+        <el-alert 
+          :title="`共有 ${appStore.mcpTools.length} 个可用工具`" 
+          type="info" 
+          :closable="false"
+          style="margin-bottom: 16px;"
+        />
+        <el-scrollbar max-height="500px">
+          <div v-for="(tool, index) in appStore.mcpTools" :key="index" class="tool-item">
+            <div class="tool-item-header">
+              <el-icon class="tool-icon"><Tools /></el-icon>
+              <span class="tool-item-name">{{ getToolName(tool) }}</span>
+            </div>
+            <div v-if="getToolDescription(tool)" class="tool-item-description">
+              {{ getToolDescription(tool) }}
+            </div>
+            <div v-if="getToolSchema(tool)" class="tool-item-schema">
+              <el-tag size="small" type="info">参数</el-tag>
+              <span class="schema-text">{{ formatSchema(getToolSchema(tool)) }}</span>
+            </div>
+          </div>
+        </el-scrollbar>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="showToolsDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -160,6 +203,7 @@ const isLoading = ref(false)
 const messagesContainer = ref(null)
 
 const showModelSelector = ref(false)
+const showToolsDialog = ref(false)
 const selectedProvider = computed({
   get: () => appStore.chatConfig.provider,
   set: (val) => appStore.updateChatConfig({ provider: val })
@@ -220,6 +264,30 @@ const renderMarkdown = (content) => {
 
 const formatToolResult = (result) => {
   return JSON.stringify(result, null, 2)
+}
+
+const formatSchema = (schema) => {
+  if (!schema || !schema.properties) return '无参数'
+  const params = Object.keys(schema.properties)
+  return params.length > 0 ? params.join(', ') : '无参数'
+}
+
+// 获取工具名称（兼容不同数据格式）
+const getToolName = (tool) => {
+  if (!tool) return '未知工具'
+  return tool.name || tool.tool_name || tool.function?.name || '未知工具'
+}
+
+// 获取工具描述（兼容不同数据格式）
+const getToolDescription = (tool) => {
+  if (!tool) return ''
+  return tool.description || tool.desc || tool.function?.description || ''
+}
+
+// 获取工具参数结构（兼容不同数据格式）
+const getToolSchema = (tool) => {
+  if (!tool) return null
+  return tool.inputSchema || tool.input_schema || tool.parameters || tool.function?.parameters || null
 }
 
 const onProviderChange = () => {
@@ -393,6 +461,13 @@ const clearChat = () => {
   ElMessage.success('对话已清空')
 }
 
+const openToolsDialog = () => {
+  console.log('打开工具对话框')
+  console.log('工具数据:', appStore.mcpTools)
+  console.log('工具数量:', appStore.mcpTools?.length)
+  showToolsDialog.value = true
+}
+
 onMounted(() => {
   // 如果还没有选择提供商和模型，默认选择第一个可用的
   if (!selectedProvider.value || !selectedModel.value) {
@@ -564,6 +639,81 @@ onMounted(() => {
   margin-left: 12px;
   font-size: 12px;
   color: #909399;
+}
+
+/* 可点击的标签 */
+.clickable-tag {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clickable-tag:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+/* 工具列表对话框 */
+.tools-empty {
+  padding: 40px 0;
+}
+
+.tools-list {
+  padding: 10px 0;
+}
+
+.tool-item {
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  transition: all 0.3s ease;
+}
+
+.tool-item:hover {
+  background: #ecf5ff;
+  border-color: #b3d8ff;
+}
+
+.tool-item:last-child {
+  margin-bottom: 0;
+}
+
+.tool-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tool-icon {
+  color: #409eff;
+  font-size: 18px;
+}
+
+.tool-item-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.tool-item-description {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.tool-item-schema {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.schema-text {
+  color: #909399;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 </style>
 
